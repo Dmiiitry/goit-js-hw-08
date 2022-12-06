@@ -1,39 +1,61 @@
-import '../css/common.css';
-import '../css/03-feedback.css';
-import throttle from 'lodash.throttle';
+import throttle from "lodash.throttle";
 
-const STORAGE_KEY = 'feedback-form-state';
-const refs = {
-  form: document.querySelector('.feedback-form'),
-  textarea: document.querySelector('.feedback-form textarea'),
-  input: document.querySelector('input'),
-};
-const formData = {};
+const KEY_STORAGE = 'feedback - form - state';
 
-populateTextarea();
+// Получаем ссылки на элементы
+const formRef = document.querySelector('.feedback-form');
 
-refs.form.addEventListener('input', throttle(onTextareaInput, 500));
+// Вешаем слушателя на форму
+formRef.addEventListener('submit', onFormSubmit);
+formRef.addEventListener('input', throttle(onTextInput,  1000));
 
-refs.form.addEventListener('submit', e => {
-  e.preventDefault();
-  e.currentTarget.reset();
-  const objData = JSON.parse(localStorage.getItem(STORAGE_KEY));
-  localStorage.removeItem(STORAGE_KEY);
-});
+// Функция, которая вызывается при загрузке страницы (для проверки введено ли что-то пользователем уже в поля формы)
+populateText();
 
-function onTextareaInput(e) {
-  formData[e.target.name] = e.target.value;
-  const stringifiedData = JSON.stringify(formData);
-  localStorage.setItem(STORAGE_KEY, stringifiedData);
+// Функция onFormSubmit, не дает перегружаться браузеру, выводит в консоль данные из формы, очищает форму при срабатывании события submit, удаляет сообщение из локального хранилища
+function onFormSubmit(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const finalData = {};
+    for(const [key, value] of formData.entries()){
+    if (!value) {
+        alert("Все поля должны быть заполнены!!");
+        return;
+    }
+        finalData[key] = value;
+    }
+    console.log(finalData);
+    form.reset();
+    localStorage.removeItem(KEY_STORAGE);
 }
 
-function populateTextarea() {
-  const savedMessage = JSON.parse(localStorage.getItem(STORAGE_KEY));
+// Функция для получения значений из формы и сохранения их в localStorage
+function onTextInput(event) {
+    const { name, value } = event.target;
+    const parsedData = JSON.parse(localStorage.getItem(KEY_STORAGE));
+    if (parsedData) {
+        const formData = {
+        ...parsedData,
+        [name] : value,    
+        };
+        localStorage.setItem(KEY_STORAGE, JSON.stringify(formData))
+        } else {
+        const formData = {[name] : value, 
+        };
+        localStorage.setItem(KEY_STORAGE, JSON.stringify(formData))
+    }
+}
 
-  if (savedMessage === null) {
-    //console.log(savedMessage);
-    return;
-  }
-  refs.textarea.value = savedMessage['message'] || '';
-  refs.input.value = savedMessage['email'] || '';
+// Функция, которая вытягивает из localStorage сохраненные данные и если они есть, то записывает их в соответствующие поля формы
+function populateText() {
+    const parsedData = JSON.parse(localStorage.getItem(KEY_STORAGE));
+    if (parsedData) {
+        const inputNames = Object.keys(parsedData);
+    inputNames.forEach(inputName => {
+        const input = formRef.elements[inputName];
+        input.value = parsedData[inputName];
+    });
+    }
+
 }
